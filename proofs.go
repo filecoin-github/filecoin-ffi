@@ -11,13 +11,14 @@ import (
 	"runtime"
 	"unsafe"
 
+	"github.com/ipfs/go-cid"
+	"github.com/pkg/errors"
+	"golang.org/x/xerrors"
+
 	"github.com/filecoin-project/go-address"
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
 	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
-	"github.com/ipfs/go-cid"
-	"github.com/pkg/errors"
-	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/filecoin-ffi/generated"
 )
@@ -361,44 +362,6 @@ func SealPreCommitPhase1(
 	return copyBytes(resp.SealPreCommitPhase1OutputPtr, resp.SealPreCommitPhase1OutputLen), nil
 }
 
-// SealGenerateLabelsBench
-func SealGenerateLabelsBench(
-	proofType abi.RegisteredSealProof,
-	cacheDirPath string,
-	stagedSectorPath string,
-	sealedSectorPath string,
-	sectorNum abi.SectorNumber,
-	minerID abi.ActorID,
-	ticket abi.SealRandomness,
-	pieces []abi.PieceInfo,
-) (phase1Output []byte, err error) {
-	sp, err := toFilRegisteredSealProof(proofType)
-	if err != nil {
-		return nil, err
-	}
-
-	proverID, err := toProverID(minerID)
-	if err != nil {
-		return nil, err
-	}
-
-	filPublicPieceInfos, filPublicPieceInfosLen, err := toFilPublicPieceInfos(pieces)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := generated.FilSealGenerateLabelsBench(sp, cacheDirPath, stagedSectorPath, sealedSectorPath, uint64(sectorNum), proverID, to32ByteArray(ticket), filPublicPieceInfos, filPublicPieceInfosLen)
-	resp.Deref()
-
-	defer generated.FilDestroySealPreCommitPhase1Response(resp)
-
-	if resp.StatusCode != generated.FCPResponseStatusFCPNoError {
-		return nil, errors.New(generated.RawString(resp.ErrorMsg).Copy())
-	}
-
-	return copyBytes(resp.SealPreCommitPhase1OutputPtr, resp.SealPreCommitPhase1OutputLen), nil
-}
-
 // SealPreCommitPhase2
 func SealPreCommitPhase2(
 	phase1Output []byte,
@@ -488,28 +451,6 @@ func SealCommitPhase2(
 	}
 
 	resp := generated.FilSealCommitPhase2(phase1Output, uint(len(phase1Output)), uint64(sectorNum), proverID)
-	resp.Deref()
-
-	defer generated.FilDestroySealCommitPhase2Response(resp)
-
-	if resp.StatusCode != generated.FCPResponseStatusFCPNoError {
-		return nil, errors.New(generated.RawString(resp.ErrorMsg).Copy())
-	}
-
-	return copyBytes(resp.ProofPtr, resp.ProofLen), nil
-}
-
-func CalibrateSealCommitPhase2(
-	phase1Output []byte,
-	sectorNum abi.SectorNumber,
-	minerID abi.ActorID,
-) ([]byte, error) {
-	proverID, err := toProverID(minerID)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := generated.FilCalibrateSealCommitPhase2(phase1Output, uint(len(phase1Output)), uint64(sectorNum), proverID)
 	resp.Deref()
 
 	defer generated.FilDestroySealCommitPhase2Response(resp)
@@ -808,6 +749,22 @@ func GetPoStVersion(proofType abi.RegisteredPoStProof) (string, error) {
 	return generated.RawString(resp.StringVal).Copy(), nil
 }
 
+func GetNumPartitionForFallbackPost(proofType abi.RegisteredPoStProof, numSectors uint) (uint, error) {
+	pp, err := toFilRegisteredPoStProof(proofType)
+	if err != nil {
+		return 0, err
+	}
+	resp := generated.FilGetNumPartitionForFallbackPost(pp, numSectors)
+	resp.Deref()
+	defer generated.FilDestroyGetNumPartitionForFallbackPostResponse(resp)
+
+	if resp.StatusCode != generated.FCPResponseStatusFCPNoError {
+		return 0, errors.New(generated.RawString(resp.ErrorMsg).Copy())
+	}
+
+	return resp.NumPartition, nil
+}
+
 // ClearCache
 func ClearCache(sectorSize uint64, cacheDirPath string) error {
 	resp := generated.FilClearCache(sectorSize, cacheDirPath)
@@ -1077,6 +1034,7 @@ func fromFilRegisteredPoStProof(p generated.FilRegisteredPoStProof) (abi.Registe
 		return abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, nil
 	case generated.FilRegisteredPoStProofStackedDrgWinning64GiBV1:
 		return abi.RegisteredPoStProof_StackedDrgWinning64GiBV1, nil
+
 	case generated.FilRegisteredPoStProofStackedDrgWindow2KiBV1:
 		return abi.RegisteredPoStProof_StackedDrgWindow2KiBV1, nil
 	case generated.FilRegisteredPoStProofStackedDrgWindow8MiBV1:
@@ -1104,6 +1062,7 @@ func toFilRegisteredPoStProof(p abi.RegisteredPoStProof) (generated.FilRegistere
 		return generated.FilRegisteredPoStProofStackedDrgWinning32GiBV1, nil
 	case abi.RegisteredPoStProof_StackedDrgWinning64GiBV1:
 		return generated.FilRegisteredPoStProofStackedDrgWinning64GiBV1, nil
+
 	case abi.RegisteredPoStProof_StackedDrgWindow2KiBV1:
 		return generated.FilRegisteredPoStProofStackedDrgWindow2KiBV1, nil
 	case abi.RegisteredPoStProof_StackedDrgWindow8MiBV1:
@@ -1215,4 +1174,31 @@ func toVanillaProofs(src [][]byte) ([]generated.FilVanillaProof, func()) {
 			allocs[idx].Free()
 		}
 	}
+}
+
+func toPartitionProofs(src []PartitionProof) ([]generated.FilPartitionSnarkProof, func(), error) {
+	allocs := make([]AllocationManager, len(src))
+	cleanup := func() {
+		for idx := range allocs {
+			allocs[idx].Free()
+		}
+	}
+
+	out := make([]generated.FilPartitionSnarkProof, len(src))
+	for idx := range out {
+		rp, err := toFilRegisteredPoStProof(src[idx].PoStProof)
+		if err != nil {
+			return nil, cleanup, err
+		}
+
+		out[idx] = generated.FilPartitionSnarkProof{
+			RegisteredProof: rp,
+			ProofLen:        uint(len(src[idx].ProofBytes)),
+			ProofPtr:        src[idx].ProofBytes,
+		}
+
+		_, allocs[idx] = out[idx].PassRef()
+	}
+
+	return out, cleanup, nil
 }

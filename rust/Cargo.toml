@@ -2,9 +2,13 @@
 name = "filcrypto"
 description = "FFI Interface to Filecoin Proofs"
 version = "0.7.5"
-authors = ["laser <l@s3r.com>", "Mikhail Komarov <nemo@nil.foundation>"]
+authors = [
+  "nemo <nemo@protocol.ai>",
+  "dignifiedquire <me@dignifiedquire.com>",
+  "laser <l@s3r.com>"
+]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/nilfoundation/filecoin-ffi"
+repository = "https://github.com/filecoin-github/filecoin-ffi"
 readme = "README.md"
 edition = "2018"
 publish = false
@@ -13,32 +17,33 @@ publish = false
 crate-type = ["rlib", "staticlib"]
 
 [dependencies]
-bls-signatures = { version = "0.10.0", default-features = false, features = ["blst"] }
-blstrs = { version = "0.3" }
+bls-signatures = { version = "0.11.0", default-features = false, features = ["blst"] }
+blstrs = "0.4"
 byteorder = "1.2"
 drop_struct_macro_derive = "0.5.0"
 ff = { version = "0.3.1", package = "fff" }
 ffi-toolkit = "0.5.0"
 filepath = "0.1.1"
-groupy = "0.4.1"
+group = "0.11"
 libc = "0.2.58"
 log = "0.4.7"
 fil_logger = "0.1.0"
-rand = "0.7"
-rand_chacha = "0.2.1"
+rand = "0.8"
+rand_chacha = "0.3.1"
 rayon = "1.2.1"
-rayon-core = "1.6.1"
-rayon-futures = "0.1.1"
 anyhow = "1.0.23"
-bellperson = { git = "ssh://git@github.com/nilfoundation/minerall-fil-zk.git", branch = "master" }
+bellperson = { git = "ssh://git@github.com/filecoin-github/bellperson.git", branch = "master" }
 serde_json = "1.0.46"
-thread_binder = { git = "ssh://git@github.com/nilfoundation/thread_binder.git", branch = "master" }
-num_cpus = "1.13.0"
-rust-gpu-tools = { git = "ssh://git@github.com/NilFoundation/rust-gpu-tools", branch = "master"}
+memmap = "0.7"
+rust-gpu-tools = { version = "0.5", default-features = false }
+storage-proofs-porep = { package = "storage-proofs-porep", git = "ssh://git@github.com/filecoin-github/rust-fil-proofs.git", branch = "master", default-features = false }
+fr32 = { package = "fr32", git = "ssh://git@github.com/filecoin-github/rust-fil-proofs.git", branch = "master", default-features = false }
 
-storage-proofs-porep = { package = "storage-proofs-porep", git = "ssh://git@github.com/NilFoundation/minerall-rust-fil-proofs", branch = "master", default-features = false }
-
-filecoin-proofs-api = { git = "ssh://git@github.com/nilfoundation/minerall-rust-filecoin-proofs-api.git", branch = "master", default-features = false }
+[dependencies.filecoin-proofs-api]
+package = "filecoin-proofs-api"
+version = "11.0"
+git = "https://github.com/filecoin-github/rust-filecoin-proofs-api"
+default-features = false
 
 [build-dependencies]
 cbindgen = "= 0.14.0"
@@ -47,8 +52,8 @@ cbindgen = "= 0.14.0"
 tempfile = "3.0.8"
 
 [features]
-default = ["blst", "gpu"]
-gpu = ["filecoin-proofs-api/gpu", "bellperson/gpu"]
-pairing = ["filecoin-proofs-api/pairing", "bellperson/pairing"]
-blst = ["filecoin-proofs-api/blst", "bellperson/blst"]
+default = ["opencl", "multicore-sdr" ]
 blst-portable = ["bls-signatures/blst-portable", "blstrs/portable"]
+opencl = ["filecoin-proofs-api/opencl", "bellperson/opencl", "storage-proofs-porep/opencl", "rust-gpu-tools/opencl"]
+cuda = ["filecoin-proofs-api/cuda", "bellperson/cuda", "storage-proofs-porep/cuda", "rust-gpu-tools/cuda"]
+multicore-sdr = ["storage-proofs-porep/multicore-sdr"]

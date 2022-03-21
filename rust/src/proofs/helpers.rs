@@ -2,15 +2,15 @@ use std::collections::btree_map::BTreeMap;
 use std::path::PathBuf;
 use std::slice::from_raw_parts;
 
-use log::info;
-
 use anyhow::{ensure, Result};
 use ffi_toolkit::{c_str_to_pbuf, c_str_to_rust_str};
 use filecoin_proofs_api::{PrivateReplicaInfo, PublicReplicaInfo, SectorId};
 
-use crate::proofs::types::{fil_PoStProof, PoStProof};
-
 use super::types::{fil_PrivateReplicaInfo, fil_PublicReplicaInfo, fil_RegisteredPoStProof};
+use crate::proofs::types::{
+    fil_PartitionProof, fil_PartitionSnarkProof, fil_PoStProof, PartitionProof,
+    PartitionSnarkProof, PoStProof,
+};
 
 #[derive(Debug, Clone)]
 struct PublicReplicaInfoTmp {
@@ -19,59 +19,12 @@ struct PublicReplicaInfoTmp {
     pub sector_id: u64,
 }
 
-#[cfg(feature = "gpu")]
-pub fn init_gpu_pool() {
-    let _ = &bellperson::gpu::DEVICE_POOL.devices.iter().for_each(|d| {
-        info!("Initializing device: {} (Bus-id: {})",
-              d.lock().unwrap().device().name(),
-              d.lock().unwrap().device().bus_id().unwrap()
-        );
-    });
-}
-
-#[cfg(not(feature = "gpu"))]
-pub fn init_gpu_pool() {}
-
-pub fn init_binded_threadpool() -> Result<(), rayon::ThreadPoolBuildError> {
-    use thread_binder::ThreadPoolBuilder;
-
-    ThreadPoolBuilder::new()
-        .num_threads(num_cpus::get())
-        .build_global()
-}
-
 #[allow(clippy::type_complexity)]
 pub unsafe fn to_public_replica_info_map(
     replicas_ptr: *const fil_PublicReplicaInfo,
     replicas_len: libc::size_t,
 ) -> Result<BTreeMap<SectorId, PublicReplicaInfo>> {
     use rayon::prelude::*;
-
-    if std::env::var("FIL_PROOFS_CORE_BINDED_THREADPOOL")
-        .and_then(|v| match v.parse() {
-            Ok(val) => Ok(val),
-            Err(_) => {
-                print!("Invalid FIL_PROOFS_CORE_BINDED_THREADPOOL! Defaulting to {}", false);
-                Ok(false)
-            }
-        })
-        .unwrap_or(false) {
-        if init_binded_threadpool().is_err() {
-            print!("Core-binded threadpool was already initialized");
-        };
-    }
-
-    if std::env::var("FIL_ZK_PRECOMPILE_GPU_CORES")
-        .and_then(|v| match v.parse() {
-            Ok(val) => Ok(val),
-            Err(_) => {
-                print!("Invalid FIL_ZK_PRECOMPILE_GPU_CORES! Defaulting to {}", false);
-                Ok(false)
-            }
-        })
-        .unwrap_or(false) {
-        init_gpu_pool();
-    }
 
     ensure!(!replicas_ptr.is_null(), "replicas_ptr must not be null");
 
@@ -118,32 +71,6 @@ pub unsafe fn to_private_replica_info_map(
     replicas_len: libc::size_t,
 ) -> Result<BTreeMap<SectorId, PrivateReplicaInfo>> {
     use rayon::prelude::*;
-
-    if std::env::var("FIL_PROOFS_CORE_BINDED_THREADPOOL")
-        .and_then(|v| match v.parse() {
-            Ok(val) => Ok(val),
-            Err(_) => {
-                print!("Invalid FIL_PROOFS_CORE_BINDED_THREADPOOL! Defaulting to {}", false);
-                Ok(false)
-            }
-        })
-        .unwrap_or(false) {
-        if init_binded_threadpool().is_err() {
-            print!("Core-binded threadpool was already initialized");
-        };
-    }
-
-    if std::env::var("FIL_ZK_PRECOMPILE_GPU_CORES")
-        .and_then(|v| match v.parse() {
-            Ok(val) => Ok(val),
-            Err(_) => {
-                print!("Invalid FIL_ZK_PRECOMPILE_GPU_CORES! Defaulting to {}", false);
-                Ok(false)
-            }
-        })
-        .unwrap_or(false) {
-        init_gpu_pool();
-    }
 
     ensure!(!replicas_ptr.is_null(), "replicas_ptr must not be null");
 
@@ -201,6 +128,45 @@ pub unsafe fn c_to_rust_post_proofs(
     let out = from_raw_parts(post_proofs_ptr, post_proofs_len)
         .iter()
         .map(|fpp| PoStProof {
+            registered_proof: fpp.registered_proof.into(),
+            proof: from_raw_parts(fpp.proof_ptr, fpp.proof_len).to_vec(),
+        })
+        .collect();
+
+    Ok(out)
+}
+
+pub unsafe fn c_to_rust_vanilla_partition_proofs(
+    partition_proofs_ptr: *const fil_PartitionProof,
+    partition_proofs_len: libc::size_t,
+) -> Result<Vec<PartitionProof>> {
+    ensure!(
+        !partition_proofs_ptr.is_null(),
+        "partition_proofs_ptr must not be null"
+    );
+
+    let out = from_raw_parts(partition_proofs_ptr, partition_proofs_len)
+        .iter()
+        .map(|fpp| PartitionProof {
+            proof: from_raw_parts(fpp.proof_ptr, fpp.proof_len).to_vec(),
+        })
+        .collect();
+
+    Ok(out)
+}
+
+pub unsafe fn c_to_rust_partition_proofs(
+    partition_proofs_ptr: *const fil_PartitionSnarkProof,
+    partition_proofs_len: libc::size_t,
+) -> Result<Vec<PartitionSnarkProof>> {
+    ensure!(
+        !partition_proofs_ptr.is_null(),
+        "partition_proofs_ptr must not be null"
+    );
+
+    let out = from_raw_parts(partition_proofs_ptr, partition_proofs_len)
+        .iter()
+        .map(|fpp| PartitionSnarkProof {
             registered_proof: fpp.registered_proof.into(),
             proof: from_raw_parts(fpp.proof_ptr, fpp.proof_len).to_vec(),
         })

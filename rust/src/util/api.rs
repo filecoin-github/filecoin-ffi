@@ -3,7 +3,7 @@ use std::fs::File;
 use std::os::unix::io::FromRawFd;
 use std::sync::Once;
 
-use ffi_toolkit::{catch_panic_response, FCPResponseStatus, raw_ptr, rust_str_to_c_str};
+use ffi_toolkit::{catch_panic_response, raw_ptr, rust_str_to_c_str, FCPResponseStatus};
 
 use super::types::{fil_GpuDeviceResponse, fil_InitLogFdResponse};
 
@@ -16,7 +16,6 @@ pub fn init_log() {
         fil_logger::init();
     });
 }
-
 /// Initialize the logger with a file to log into
 ///
 /// Returns `None` if there is already an active logger
@@ -36,7 +35,7 @@ pub fn init_log_with_file(file: File) -> Option<()> {
 pub unsafe extern "C" fn fil_get_gpu_devices() -> *mut fil_GpuDeviceResponse {
     catch_panic_response(|| {
         let mut response = fil_GpuDeviceResponse::default();
-        let devices = rust_gpu_tools::opencl::Device::all();
+        let devices = rust_gpu_tools::Device::all();
         let n = devices.len();
 
         let devices: Vec<*const libc::c_char> = devices
@@ -81,10 +80,12 @@ pub unsafe extern "C" fn fil_init_log_fd(log_fd: libc::c_int) -> *mut fil_InitLo
 
 #[cfg(test)]
 mod tests {
+
     use crate::util::api::fil_get_gpu_devices;
     use crate::util::types::fil_destroy_gpu_device_response;
 
     #[test]
+    #[allow(clippy::needless_collect)]
     fn test_get_gpu_devices() {
         unsafe {
             let resp = fil_get_gpu_devices();

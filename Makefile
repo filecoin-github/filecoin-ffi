@@ -1,5 +1,7 @@
 DEPS:=filcrypto.h filcrypto.pc libfilcrypto.a
 
+export CARGO_TARGET_DIR=target
+
 all: $(DEPS)
 .PHONY: all
 
@@ -16,8 +18,7 @@ clean:
 	go clean -cache -testcache .
 	rm -rf $(DEPS) .install-filcrypto
 	rm -f ./runner
-	cd rust && cargo clean && rm -rf Cargo.lock && cd ..
-	rm -rf libs/cpp-fil-proofs/build
+	cd rust && cargo clean && cd ..
 .PHONY: clean
 
 go-lint: $(DEPS)
