@@ -36,14 +36,15 @@ bellperson = { git = "ssh://git@github.com/filecoin-github/bellperson.git", bran
 serde_json = "1.0.46"
 memmap = "0.7"
 rust-gpu-tools = { version = "0.5", default-features = false }
-storage-proofs-porep = { package = "storage-proofs-porep", git = "ssh://git@github.com/filecoin-github/rust-fil-proofs.git", branch = "master", default-features = false }
-fr32 = { package = "fr32", git = "ssh://git@github.com/filecoin-github/rust-fil-proofs.git", branch = "master", default-features = false }
+storage-proofs-porep = { package = "storage-proofs-porep", git = "ssh://git@github.com/filecoin-github/rust-fil-proofs.git", branch = "master", default-features = false, features = ["cpu-optimization"] }
+fr32 = { package = "fr32", git = "ssh://git@github.com/filecoin-github/rust-fil-proofs.git", branch = "master", default-features = false, features = ["cpu-optimization"] }
 
 [dependencies.filecoin-proofs-api]
 package = "filecoin-proofs-api"
 version = "11.0"
-git = "https://github.com/filecoin-github/rust-filecoin-proofs-api"
+git = "ssh://git@github.com/filecoin-github/rust-filecoin-proofs-api.git"
 default-features = false
+features = ["cpu-optimization"]
 
 [build-dependencies]
 cbindgen = "= 0.14.0"
