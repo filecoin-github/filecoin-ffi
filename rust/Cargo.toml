@@ -57,4 +57,9 @@ blst-portable = ["bls-signatures/blst-portable", "blstrs/portable"]
 opencl = ["filecoin-proofs-api/opencl", "bellperson/opencl", "storage-proofs-porep/opencl", "rust-gpu-tools/opencl"]
 cuda = ["filecoin-proofs-api/cuda", "bellperson/cuda", "storage-proofs-porep/cuda", "rust-gpu-tools/cuda"]
 multicore-sdr = ["storage-proofs-porep/multicore-sdr"]
-cpu-optimization = ["storage-proofs-porep/cpu-optimization", "fr32/cpu-optimization", "bellperson/cpu-optimization", "filecoin-proofs-api/cpu-optimization"]
+cpu-optimization = [
+    "storage-proofs-porep/cpu-optimization",
+    "fr32/cpu-optimization",
+    "bellperson/cpu-optimization",
+    "filecoin-proofs-api/cpu-optimization"
+]
