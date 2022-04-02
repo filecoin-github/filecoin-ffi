@@ -36,15 +36,14 @@ bellperson = { git = "ssh://git@github.com/filecoin-github/bellperson.git", bran
 serde_json = "1.0.46"
 memmap = "0.7"
 rust-gpu-tools = { version = "0.5", default-features = false }
-storage-proofs-porep = { package = "storage-proofs-porep", git = "ssh://git@github.com/filecoin-github/rust-fil-proofs.git", branch = "master", default-features = false, features = ["cpu-optimization"] }
-fr32 = { package = "fr32", git = "ssh://git@github.com/filecoin-github/rust-fil-proofs.git", branch = "master", default-features = false, features = ["cpu-optimization"] }
+storage-proofs-porep = { package = "storage-proofs-porep", git = "ssh://git@github.com/filecoin-github/rust-fil-proofs.git", branch = "master", default-features = false }
+fr32 = { package = "fr32", git = "ssh://git@github.com/filecoin-github/rust-fil-proofs.git", branch = "master", default-features = false }
 
 [dependencies.filecoin-proofs-api]
 package = "filecoin-proofs-api"
 version = "11.0"
 git = "ssh://git@github.com/filecoin-github/rust-filecoin-proofs-api.git"
 default-features = false
-features = ["cpu-optimization"]
 
 [build-dependencies]
 cbindgen = "= 0.14.0"
@@ -53,8 +52,9 @@ cbindgen = "= 0.14.0"
 tempfile = "3.0.8"
 
 [features]
-default = ["opencl", "multicore-sdr" ]
+default = ["opencl", "multicore-sdr", "cpu-optimization"]
 blst-portable = ["bls-signatures/blst-portable", "blstrs/portable"]
 opencl = ["filecoin-proofs-api/opencl", "bellperson/opencl", "storage-proofs-porep/opencl", "rust-gpu-tools/opencl"]
 cuda = ["filecoin-proofs-api/cuda", "bellperson/cuda", "storage-proofs-porep/cuda", "rust-gpu-tools/cuda"]
 multicore-sdr = ["storage-proofs-porep/multicore-sdr"]
+cpu-optimization = ["storage-proofs-porep/cpu-optimization", "fr32/cpu-optimization", "bellperson/cpu-optimization", "filecoin-proofs-api/cpu-optimization"]
